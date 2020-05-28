@@ -387,7 +387,7 @@ _CountHL.end:
 	
 #============= Thu tuc _XuatTrangThai ===============
 # Xuat ra trang thai tuong ung voi so luot doan sai
-# truyen vao: a0 = so luot doan sai
+# truyen vao: a0(false) = so luot doan sai
 # tra ve: khong
 _XuatTrangThai:
 	addi $sp, $sp, -32
@@ -426,6 +426,9 @@ _XuatTrangThai:
 	addi $t0, $t0, 1
 	seq $t1, $s0, $t0
 	beq $t1, 1, _XuatTrangThai.False7
+	
+	# false = 0
+	jal _XuatTrangThai.End1
 	
 _XuatTrangThai.False1:
 	#Sai 1 lan
@@ -560,7 +563,8 @@ _XuatTrangThai.End:
 	syscall
 	li $v0, 4
 	syscall
-
+_XuatTrangThai.End1:
+       lw $ra, ($sp)
 	lw $ra, ($sp)
 	lw $s0, 4($sp)
 	lw $t0, 8($sp)
