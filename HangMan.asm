@@ -3,13 +3,14 @@
 
 .data
 	title: .asciiz "=~-=-=-=-=-=| Hang~Man |=-=-=-=-=-~="
-	nhapten: .asciiz "\nNhap ten: "
-	player.info: .asciiz "\nTen nguoi choi - Tong so diem - So luot chien thang\n"
-	end.opt: .asciiz "\n1. Tiep tuc tro choi\n2. Thoat\nLua chon cua ban: "
+	nhap: .asciiz "Xin moi nhap username: "
+	nhap.err: .asciiz "Username vua nhap khong hop le. Vui long nhap lai.\n"
+	player.info: .asciiz "\n================================================\nTen nguoi choi-Tong so diem-So luot chien thang\n"
+	end.opt: .asciiz "\n================================================\n1. Tiep tuc tro choi\n2. Thoat\nLua chon cua ban: "
 	MissTurn: .asciiz "\nSo luot da mat: "
 	ques: .asciiz "\nNhap chuoi hay ky tu ban doan: "
-	tb1: .asciiz "\nGame Over!\n"
-	tb2: .asciiz "\nYou Win!\n"
+	tb1: .asciiz "\nYOU LOSE! GAME OVER!\n"
+	tb2: .asciiz "\nYOU WIN! GO TO NEXT ROUND!\n"
 	tt.tb:  .asciiz "\n-------------"
 	tt.tb1: .asciiz "\n|/       |"
 	tt.tb2: .asciiz "\n|        O"
@@ -19,6 +20,7 @@
 	tt.tb6: .asciiz "\n|       /"
 	tt.tb7: .asciiz "\n|       / \\"
 	tt.tb8: .asciiz "\n|"
+	tbtest: .asciiz "Nhap de thi: "
 	
 	fout: .asciiz "nguoichoi.txt"      # filename for output
 	
@@ -30,6 +32,7 @@
 	Miss: .word 0		# So luot doan sai
 	Diem: .word 0		# Diem nguoi choi
 	WinRound: .word 0	# So luot chien thang
+	randNumber: .word -1	# So random de thi
 	
 	SeWo: .space 20	# Bien chuoi dap an (load tu file)
 	Ans: .space 20	# Bien chuoi va ky tu nguoi choi nhap
@@ -37,8 +40,9 @@
 	Diem_str: .space 20		# Diem nguoi choi (duoi dang string)
 	WinRound_str: .space 20	# So luot chien thang (duoi dang string)
 	player.name: .space 20	# Ten nguoi choi
-	player.inf: .space 63	# player.name-Diem-WinRound*
-
+	player.inf: .space 63	# Chuoi "player.name-Diem-WinRound*"
+	str: .space 30		# Bien tam cho ham nhap ten nguoi choi
+	
 	
 .text
 	.globl main	
@@ -48,14 +52,7 @@ main:
 	#---------new player info---------
 Replay:
 	# nhap ten nguoi choi
-	li $v0,4
-	la $a0,nhapten
-	syscall 
-	
-	li $v0, 8		
-	la $a0, player.name
-	li $a1, 20
-	syscall
+	jal _EnterUsername
 	
 	# khoi tao
 	li $a0,0
@@ -70,15 +67,49 @@ NewRound:
 	li $s0, 0		
 	sw $s0, Miss	
 	
-	#---------doc file de thi---------
+	#---------create de thi-----------
+	#-----generate random number------
+
+	# lay gia tri randNumber
+	la $t0,randNumber
+	lw $t0,($t0)
+	beq $t0,-1,RandomNum		
+RandomNewNum:				# random lan choi thu n
+	# goi ham Random number	
+	jal _RandomNumber
+	# lay ket qua tra ve
+	sw $v0,randNumber
+	beq $v0,$t0,RandomNewNum	# random 1 so trung voi so truoc do -> random lai
+	j Exit_Random
+RandomNum:				# random lan choi dau tien
+	# goi ham Random number	
+	jal _RandomNumber
+	# lay ket qua tra ve
+	sw $v0,randNumber
+Exit_Random:
+
+	#---------read from file---------- 
+		
+	#jal _ReadDataFromFile	
 	
-	li $v0, 8		# nhap de thi
+	#------get word from POS I-------- 
+	
+	#la $a0, String_in_File
+	#lw $a1, randNumber	
+	#jal _GetWordFromPositionI 			=> BUG
+	
+	# nhap de thi
+	li $v0, 4
+	la $a0, tbtest
+	syscall
+	li $v0, 8		
 	la $a0, SeWo
 	li $a1, 20
 	syscall
 	
 	la $a0, SeWo		
-	jal _Length
+	jal _Length		# lay do dai chuoi ket thuc = "\n"
+	#jal _LengthBuffer	# lay do dai chuoi ket thuc = $0
 	sw $v1, lenSeWo	# so ky tu de thi
 			
 	la $a0, Dis
@@ -197,7 +228,7 @@ GameOver:
 	lw $a0,($a0)
 	syscall 
 	
-	#-------ghi file nguoi choi-------
+	#------write file nguoi choi------
 
 	# Mo file ghi
 	li $v0,13       
@@ -224,7 +255,7 @@ GameOver:
 	la $a3,player.inf
 	jal _PlayerInfoStr
 	
-	# tinh do dai chuoi de ghi file ($a2)
+	# tinh do dai player.inf de ghi file ($a2)
 	la $a0,player.inf
 	jal _LengthBuffer
 	addi $v0,$v0,1	# them ki tu ket thuc?
@@ -255,7 +286,7 @@ GameOver:
 	bne $v0,1,end		# thoat
 	
 GameWin:
-	#reset Dis
+	# reset Dis
 	la $a0, Dis
 	lw $a1, lenSeWo
 	jal _spcDis
@@ -323,8 +354,8 @@ _Length.end:
 #=============== end of _Length =====================
 
 
-#=============== Thu tuc _LengthBuffer ====================
-# Tinh do dai chuoi (ket thuc = $0)
+#============= Thu tuc _LengthBuffer ================
+# Tinh do dai chuoi (ket thuc bang $0)
 # Truyen vao: a0 = $str
 # Tra ve: v0 = do dai str
 _LengthBuffer:
@@ -353,7 +384,7 @@ _LengthBuffer.end:
 	lw $t1, 12($sp)
 	addi $sp, $sp, 16
 	jr $ra
-#=============== end of _LengthBuffer =====================
+#============= end of _LengthBuffer =================
 
 
 #=============== Thu tuc _ConDis ====================
@@ -744,6 +775,28 @@ _PlayerInfoStr.Exit:
 	jr $ra
 #============== end of _PlayerInfoStr ===============
 
+
+#============== Thu tuc _RandomNumber ===============
+# Tao so ngau nhien
+# Truyen vao: khong co
+# Tra ve: v0 = random_int
+_RandomNumber:
+	addi $sp,$sp,-8
+	sw $ra,($sp)
+    	sw $s0,4($sp) 	# random number
+    
+    	li $a1, 7 		# Here you set $a1 to the max bound.
+    	li $v0, 42  		# generates the random number.
+    	syscall
+    	
+	move $v0,$a0 		# random luu trong $a0 -- chuyen $a0 ve $v0 de tra ve
+	
+	lw $ra,($sp)
+    	lw $s0,4($sp)
+	addi $sp,$sp,8
+ 	jr $ra
+#=============== end of _RandomNumber ===============
+
 			
 #============= Thu tuc _XuatTrangThai ===============
 # Xuat ra trang thai tuong ung voi so luot doan sai
@@ -931,9 +984,143 @@ _XuatTrangThai.End1:
 	lw $t1, 12($sp)
 	addi $sp, $sp, 16
 	jr $ra
-#================ end of _XuatTrangThai ===================
+#=============== end of _XuatTrangThai ==============
+
+
+#============= Thu tuc _EnterUsername ===============
+# Nhap ten nguoi choi (vao bien player.name)
+# Truyen vao: khong
+# Tra ve: khong
+
+#Dau thu tuc
+_EnterUsername:
+	addi $sp,$sp,-56
+	sw $ra,($sp)
+	sw $s0,4($sp)	
+	sw $s1,8($sp)
+	sw $s2,12($sp)	
+	sw $s3,16($sp)
+	sw $s4,20($sp)	
+	sw $s5,24($sp)
+	sw $s6,28($sp)	
+	sw $s7,32($sp)
+	sw $t0,36($sp)	
+	sw $t1,40($sp)
+	sw $t2,44($sp)	
+	sw $t3,48($sp)
+	sw $t4,52($sp)	
+	
+#than thu tuc
+
+	#xuat tb1
+	li $v0, 4
+	la $a0,nhap
+	syscall 
+	
+	#nhap chuoi username
+	li $v0,8
+	la $a0,str
+	la $a1,30
+	syscall 
 	
 	
+	li $t4,0	#khoi tao t4=0
+	la $s0,str	#Khoi tao chuoi ban dau
+	la $s1,player.name	#khoi tao chuoi ket qua
+	li $s2,'0'
+	li $s3,'9'
+	li $s4,'a'
+	li $s5,'z'
+	li $s6,'A'
+	li $s7,'Z'
+
+_EnterUsername.Loop:
+	#kiem tra xem so ki tu chuoi co bang 10 khong
+	beq $t4,10,_EnterUsername.End_loop
+	
+	#doc 1 ki tu
+	lb $t0,($s0)
+	#xem ki tu do co thuoc 0->9 hay khong
+	sle $t1,$s2,$t0
+	sle $t2,$t0,$s3
+	and $t3,$t1,$t2
+	
+	#neu bang add ki tu vao chuoi ket qua
+	bne $t3,0,_EnterUsername.Loop.AddStr
+	
+	#xem ki tu co thuoc chuoi tu a->z khong
+	sle $t1,$s4,$t0
+	sle $t2,$t0,$s5
+	and $t3,$t1,$t2
+	
+	#neu bang add ki tu vao chuoi ket qua
+	bne $t3,0,_EnterUsername.Loop.AddStr
+	
+	#xem ki tu co thuoc tu A-> Z khong
+	sle $t1,$s6,$t0
+	sle $t2,$t0,$s7
+	and $t3,$t1,$t2
+	
+	#neu bang thi add ki tu vao chuoi ket qua
+	beq $t3,1,_EnterUsername.Loop.AddStr
+	
+	#neu ki tu la \n thi ket thuc vong lap
+	beq $t0,'\n',_EnterUsername.End_loop
+		
+	j _EnterUsername.NotPermit
+
+	
+_EnterUsername.Loop.AddStr:
+	#lay 1 ki tu cua s1 luu vao t0
+	sb $t0,($s1)
+	
+	#tang chuoi $s0
+	addi $s0,$s0,1
+	
+	#tang chuoi $s1
+	addi $s1,$s1,1
+	
+	#tang dem len 1
+	addi $t4,$t4,1
+	
+	j _EnterUsername.Loop
+	
+_EnterUsername.NotPermit:
+
+	#xuat thong bao chuoi nhap khong hop le
+	li $v0,4
+	la $a0,nhap.err
+	syscall
+	#nhap lai tu dau
+	j _EnterUsername
+	 
+_EnterUsername.End_loop:	
+	sb $0,($s1)	
+#cuoi thu tuc
+	#restore thanh ghi
+	lw $ra,($sp)
+	lw $s0,4($sp)	
+	lw $s1,8($sp)
+	lw $s2,12($sp)	
+	lw $s3,16($sp)
+	lw $s4,20($sp)	
+	lw $s5,24($sp)
+	lw $s6,28($sp)	
+	lw $s7,32($sp)
+	lw $t0,36($sp)	
+	lw $t1,40($sp)
+	lw $t2,44($sp)	
+	lw $t3,48($sp)
+	lw $t4,52($sp)	
+	
+	#xoa stack
+	addi $sp,$sp,56
+	
+	#quay ve ham main
+	jr $ra
+#=============== end of _EnterUsername ==============
+
+
 	
 	
 	
