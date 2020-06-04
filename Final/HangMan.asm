@@ -7,7 +7,7 @@
 	arr_player: .space 1000 #100 phan tu 10 byte
 	str: .space 1000 # 250 phan tu 4 bytes
 	str_player: .space 1000	
-	
+	SeWo: .space 20	# Bien chuoi dap an (load tu file)
 	title: .asciiz "=========================| HANG~MAN |========================="
 	nhap: .asciiz "Xin moi nhap username: "
 	nhap.err: .asciiz "Username vua nhap khong hop le. Vui long nhap lai.\n"
@@ -48,7 +48,7 @@
 	randNumber: .word -1	# So random de thi
 	number_of_highscore: .word 0
 	
-	SeWo: .space 20	# Bien chuoi dap an (load tu file)
+	
 	Ans: .space 20	# Bien chuoi va ky tu nguoi choi nhap
 	Dis: .space 20	# Bien hien thi de thi (ky tu an)	
 	Diem_str: .space 20		# Diem nguoi choi (duoi dang string)
@@ -106,12 +106,15 @@ RandomNum:				# random lan choi dau tien
 Exit_Random:
 
 	#---------read from file---------- 
-	jal _ReadDataFromFile			
+	jal _ReadDataFromFile	
+			
 	
 	#------get word from POS I--------
 	la $a0, String_in_File
 	lw $a1, randNumber	
 	jal _GetWordFromPositionI 			
+	
+
 	
 	la $a0, SeWo		
 	jal _LengthBuffer	# lay do dai chuoi ket thuc = $0
@@ -943,7 +946,7 @@ _RandomNumber:
 	sw $ra,($sp)
     	sw $s0,4($sp) 	# random number
     
-    	li $a1, 7 		# Here you set $a1 to the max bound.
+    	li $a1, 15 		# Here you set $a1 to the max bound.
     	li $v0, 42  		# generates the random number.
     	syscall
     	
@@ -1303,7 +1306,7 @@ _ReadDataFromFile:
 	li $v0,14
 	move $a0,$s0
 	la $a1,String_in_File
-	li $a2,50
+	li $a2,500
 	syscall		
 
 	lw $ra,($sp)
@@ -1334,6 +1337,7 @@ _GetWordFromPositionI:
 	move $s1,$a1 #$s1 ->Random Number
    
 	la $s2,SeWo
+	
 	li $t0,0		#bien dem  
 _GetWordFromPositionI.Loop:
 	#doc 1 ki tu
@@ -1365,9 +1369,11 @@ _GetWordFromPositionI.GetWord:
     	j _GetWordFromPositionI.GetWord  	
 _GetWordFromPositionI.Ketthuc:    
  	#gan ki tu ket thuc chuoi cho word
- 	addi $s2,$s2,1
+ 
  	sb $0,($s2) 
-
+	
+	
+	
 	lw $ra,($sp)
 	lw $s0,4($sp) #String in File
     	lw $s1,8($sp) #Random Number
